@@ -120,6 +120,17 @@
         function load3DApple() {
             const loader = new THREE.GLTFLoader();
 
+            // Redirect missing textures folder to root directory
+            const manager = new THREE.LoadingManager();
+            loader.manager = manager;
+
+            manager.setURLModifier((url) => {
+                if (url.includes('textures/')) {
+                    return url.replace('textures/', '');
+                }
+                return url;
+            });
+
             // Loading Apple GLTF/GLB model file
             loader.load('scene.gltf', function (gltf) {
                 appleModel = gltf.scene;
@@ -136,7 +147,7 @@
                 scene.add(appleModel);
                 document.getElementById('loading').style.display = 'none';
             }, undefined, function (error) {
-                console.error('Error loading 3D model, fallback placeholder loaded:', error);
+                console.error('Error loading 3D model:', error);
                 document.getElementById('loading').innerText = "Model file 'scene.gltf' missing! Place it in repo.";
             });
         }
