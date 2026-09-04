@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Fruit Ninja Classic</title>
+    <title>3D Fruit Game</title>
     <style>
         body {
             margin: 0;
@@ -17,14 +17,15 @@
             top: 20px;
             left: 20px;
             color: #ffffff;
-            font-size: 24px;
+            font-size: 28px;
             font-weight: bold;
             pointer-events: none;
             text-shadow: 2px 2px 4px #000;
+            z-index: 10;
         }
     </style>
-    <!-- Three.js 3D Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.min.js"></script>
+    <!-- Fixed Three.js CDN Link -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
 
@@ -42,46 +43,47 @@
         animate();
 
         function init() {
-            // 1. Scene Setup
             scene = new THREE.Scene();
             
-            // 2. Camera Setup (Portrait Mode Optimized)
             camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 8;
+            camera.position.z = 7;
 
-            // 3. Renderer Setup
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             document.body.appendChild(renderer.domElement);
 
-            // 4. Lighting (Real 3D Lighting & Shadows)
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // Lighting setup
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
             scene.add(ambientLight);
 
             const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
             dirLight.position.set(5, 10, 7);
             scene.add(dirLight);
 
-            // Event Listeners for Touch/Mouse Swipe
+            // Pointer Events for mobile touch & desktop mouse
             window.addEventListener('pointerdown', onPointerDown);
             window.addEventListener('pointermove', onPointerMove);
             window.addEventListener('pointerup', onPointerUp);
             window.addEventListener('resize', onWindowResize);
 
-            // Spawn Fruits Periodically
-            setInterval(spawnFruit, 1500);
+            // Start spawning 3D fruits
+            setInterval(spawnFruit, 1200);
         }
 
-        // Create Real 3D Fruit Mesh
         function spawnFruit() {
             const fruitGroup = new THREE.Group();
 
-            // Fruit Body (Real 3D Sphere)
-            const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+            // 3D Sphere Fruit
+            const geometry = new THREE.SphereGeometry(0.7, 32, 32);
+            
+            // Random vibrant colors
+            const colors = [0xff3366, 0x33ff66, 0xffcc00, 0x9933ff, 0xff6600];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
             const material = new THREE.MeshStandardMaterial({ 
-                color: Math.random() * 0xffffff, 
-                roughness: 0.3,
+                color: randomColor, 
+                roughness: 0.2,
                 metalness: 0.1 
             });
             
@@ -89,17 +91,16 @@
             fullFruit.name = "full_fruit";
             fruitGroup.add(fullFruit);
 
-            // Initial Position (Bottom of screen)
-            fruitGroup.position.x = (Math.random() - 0.5) * 4;
-            fruitGroup.position.y = -5;
+            // Spawn from bottom
+            fruitGroup.position.x = (Math.random() - 0.5) * 3.5;
+            fruitGroup.position.y = -4.5;
             fruitGroup.position.z = 0;
 
-            // Physical Launch Velocities
             fruitGroup.userData = {
-                velocityY: 0.18 + Math.random() * 0.05,
-                velocityX: (Math.random() - 0.5) * 0.04,
-                rotSpeedX: Math.random() * 0.05,
-                rotSpeedY: Math.random() * 0.05,
+                velocityY: 0.15 + Math.random() * 0.04,
+                velocityX: (Math.random() - 0.5) * 0.03,
+                rotSpeedX: Math.random() * 0.08,
+                rotSpeedY: Math.random() * 0.08,
                 isCut: false
             };
 
@@ -107,7 +108,6 @@
             fruits.push(fruitGroup);
         }
 
-        // Swipe Detection
         function onPointerDown(event) {
             isSwiping = true;
             checkIntersection(event);
@@ -139,63 +139,53 @@
             });
         }
 
-        // Real 3D Slicing Logic (Splits mesh into 2 halves)
         function sliceFruit(fruitGroup) {
             fruitGroup.userData.isCut = true;
 
-            // Remove full fruit mesh
             const originalMesh = fruitGroup.getObjectByName("full_fruit");
             if (originalMesh) fruitGroup.remove(originalMesh);
 
-            // Create Left Half Mesh (Hemisphere)
-            const leftGeo = new THREE.SphereGeometry(0.8, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xff3333, side: THREE.DoubleSide });
+            // Create 3D Cut Halves
+            const halfGeo = new THREE.SphereGeometry(0.7, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+            const insideMat = new THREE.MeshStandardMaterial({ color: 0xff4444, side: THREE.DoubleSide });
             
-            const leftHalf = new THREE.Mesh(leftGeo, mat);
+            const leftHalf = new THREE.Mesh(halfGeo, insideMat);
             leftHalf.position.x = -0.1;
             leftHalf.rotation.z = Math.PI / 2;
 
-            // Create Right Half Mesh
-            const rightHalf = new THREE.Mesh(leftGeo, mat);
+            const rightHalf = new THREE.Mesh(halfGeo, insideMat);
             rightHalf.position.x = 0.1;
             rightHalf.rotation.z = -Math.PI / 2;
 
             fruitGroup.add(leftHalf);
             fruitGroup.add(rightHalf);
 
-            // Add Split Mechanics
             fruitGroup.userData.leftHalf = leftHalf;
             fruitGroup.userData.rightHalf = rightHalf;
 
-            // Update Score
             score += 10;
             document.getElementById('score').innerText = score;
         }
 
-        // Game Loop (Physics Animation)
         function animate() {
             requestAnimationFrame(animate);
 
             for (let i = fruits.length - 1; i >= 0; i--) {
                 const fruit = fruits[i];
 
-                // Apply Gravity
                 fruit.position.y += fruit.userData.velocityY;
                 fruit.position.x += fruit.userData.velocityX;
-                fruit.userData.velocityY -= 0.005; // Gravity acceleration
+                fruit.userData.velocityY -= 0.0035; // Smooth gravity
 
-                // Rotate Fruit in 3D Space
                 fruit.rotation.x += fruit.userData.rotSpeedX;
                 fruit.rotation.y += fruit.userData.rotSpeedY;
 
-                // If Fruit is Sliced, Separate Halves
                 if (fruit.userData.isCut) {
-                    if (fruit.userData.leftHalf) fruit.userData.leftHalf.position.x -= 0.03;
-                    if (fruit.userData.rightHalf) fruit.userData.rightHalf.position.x += 0.03;
+                    if (fruit.userData.leftHalf) fruit.userData.leftHalf.position.x -= 0.04;
+                    if (fruit.userData.rightHalf) fruit.userData.rightHalf.position.x += 0.04;
                 }
 
-                // Remove Fruit when off-screen
-                if (fruit.position.y < -6) {
+                if (fruit.position.y < -5.5) {
                     scene.remove(fruit);
                     fruits.splice(i, 1);
                 }
