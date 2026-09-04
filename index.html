@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Apple Runner Game</title>
+    <title>3D Doraemon Subway Runner</title>
     <style>
         body {
             margin: 0;
@@ -29,7 +29,7 @@
             width: 100%;
             text-align: center;
             color: #94a3b8;
-            font-size: 16px;
+            font-size: 15px;
             pointer-events: none;
         }
         #loading {
@@ -71,7 +71,7 @@
 </head>
 <body>
 
-    <div id="loading">Loading 3D Apple Runner...</div>
+    <div id="loading">Loading Doraemon Runner...</div>
 
     <div id="ui">
         <div id="score">Score: 0</div>
@@ -83,16 +83,19 @@
         <button id="restart-btn" onclick="resetGame()">Play Again</button>
     </div>
 
-    <div id="instructions">Swipe Left/Right to change lanes | Swipe Up to Jump</div>
+    <div id="instructions">Swipe Left/Right | Swipe Up (Jump) | Swipe Down (Slide)</div>
 
     <script>
         let scene, camera, renderer;
-        let appleModel, track;
-        let score = 0, speed = 0.3;
+        let player, nobitaModel;
+        let score = 0, speed = 0.35;
         let currentLane = 0; // -1: Left, 0: Center, 1: Right
         const laneX = [-2, 0, 2];
+        
         let isJumping = false, jumpVelocity = 0;
+        let isSliding = false, slideTimer = 0;
         const gravity = -0.015;
+        
         let obstacles = [];
         let isGameOver = false;
         let touchStartX = 0, touchStartY = 0;
@@ -115,7 +118,7 @@
             document.body.appendChild(renderer.domElement);
 
             // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
             scene.add(ambientLight);
 
             const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -123,7 +126,7 @@
             scene.add(dirLight);
 
             createTrack();
-            load3DApple();
+            loadCharacter();
 
             // Event Listeners
             window.addEventListener('keydown', handleKeyDown);
@@ -135,7 +138,7 @@
         function createTrack() {
             const trackGeo = new THREE.PlaneGeometry(7, 200);
             const trackMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
-            track = new THREE.Mesh(trackGeo, trackMat);
+            const track = new THREE.Mesh(trackGeo, trackMat);
             track.rotation.x = -Math.PI / 2;
             track.position.z = -80;
             scene.add(track);
@@ -143,7 +146,7 @@
             // Lane markers
             for (let i = -1; i <= 1; i += 2) {
                 const lineGeo = new THREE.PlaneGeometry(0.1, 200);
-                const lineMat = new THREE.MeshBasicMaterial({ color: 0x64748b });
+                const lineMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
                 const line = new THREE.Mesh(lineGeo, lineMat);
                 line.rotation.x = -Math.PI / 2;
                 line.position.set(i * 1.3, 0.01, -80);
@@ -151,56 +154,106 @@
             }
         }
 
-        function load3DApple() {
-            const loader = new THREE.GLTFLoader();
+        function loadCharacter() {
+            // Doraemon Player Group
+            player = new THREE.Group();
 
-            // Redirect textures path to root
-            const manager = new THREE.LoadingManager();
-            loader.manager = manager;
-            manager.setURLModifier((url) => {
-                if (url.includes('textures/')) return url.replace('textures/', '');
-                return url;
-            });
+            // Doraemon Body (Blue Sphere)
+            const bodyGeo = new THREE.SphereGeometry(0.5, 16, 16);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.y = 0.5;
+            player.add(body);
 
-            loader.load('scene.gltf', function (gltf) {
-                appleModel = gltf.scene;
+            // Doraemon Belly (White Sphere)
+            const bellyGeo = new THREE.SphereGeometry(0.35, 16, 16);
+            const bellyMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const belly = new THREE.Mesh(bellyGeo, bellyMat);
+            belly.position.set(0, 0.45, 0.2);
+            player.add(belly);
 
-                const box = new THREE.Box3().setFromObject(appleModel);
-                const center = box.getCenter(new THREE.Vector3());
-                appleModel.position.sub(center);
+            // Red Bell
+            const bellGeo = new THREE.SphereGeometry(0.08, 8, 8);
+            const bellMat = new THREE.MeshStandardMaterial({ color: 0xeab308 });
+            const bell = new THREE.Mesh(bellGeo, bellMat);
+            bell.position.set(0, 0.65, 0.45);
+            player.add(bell);
 
-                appleModel.scale.set(0.008, 0.008, 0.008); 
-                appleModel.position.set(0, 0.6, 0);
+            player.position.set(0, 0, 0);
+            scene.add(player);
 
-                scene.add(appleModel);
-                document.getElementById('loading').style.display = 'none';
-            }, undefined, function (error) {
-                console.error(error);
-                document.getElementById('loading').innerText = "Failed to load 'scene.gltf'";
-            });
+            document.getElementById('loading').style.display = 'none';
         }
 
         function spawnObstacle() {
             if (isGameOver) return;
 
-            const obstacleGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
-            const obstacleMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.3 });
-            const obstacle = new THREE.Mesh(obstacleGeo, obstacleMat);
+            const obstacleGroup = new THREE.Group();
+            const randomType = Math.floor(Math.random() * 3); // 0: Nobita, 1: Low Hurdle (Jump over), 2: High Barrier (Slide under)
+            let obstacleType = "nobita";
+
+            if (randomType === 0) {
+                // Nobita Model Placeholder
+                const headGeo = new THREE.SphereGeometry(0.35, 12, 12);
+                const headMat = new THREE.MeshStandardMaterial({ color: 0xfde047 }); // Yellow shirt / face
+                const head = new THREE.Mesh(headGeo, headMat);
+                head.position.y = 0.9;
+                obstacleGroup.add(head);
+
+                const bodyGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.8);
+                const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8 }); // Blue pants
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = 0.4;
+                obstacleGroup.add(body);
+
+                obstacleType = "nobita";
+            } else if (randomType === 1) {
+                // Low Barrier (Jump Over)
+                const barGeo = new THREE.BoxGeometry(1.6, 0.5, 0.2);
+                const barMat = new THREE.MeshStandardMaterial({ color: 0xef4444 });
+                const bar = new THREE.Mesh(barGeo, barMat);
+                bar.position.y = 0.25;
+                obstacleGroup.add(bar);
+
+                obstacleType = "low";
+            } else {
+                // High Barrier (Slide Under)
+                const barGeo = new THREE.BoxGeometry(1.6, 0.8, 0.2);
+                const barMat = new THREE.MeshStandardMaterial({ color: 0xf97316 });
+                const bar = new THREE.Mesh(barGeo, barMat);
+                bar.position.y = 1.3; // High position
+                obstacleGroup.add(bar);
+
+                // Side pillars
+                const pillarGeo = new THREE.CylinderGeometry(0.05, 0.05, 1.5);
+                const pMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
+                const p1 = new THREE.Mesh(pillarGeo, pMat);
+                p1.position.set(-0.7, 0.75, 0);
+                const p2 = new THREE.Mesh(pillarGeo, pMat);
+                p2.position.set(0.7, 0.75, 0);
+                obstacleGroup.add(p1, p2);
+
+                obstacleType = "high";
+            }
 
             const randomLane = laneX[Math.floor(Math.random() * 3)];
-            obstacle.position.set(randomLane, 0.6, -40);
+            obstacleGroup.position.set(randomLane, 0, -40);
+            obstacleGroup.userData = { type: obstacleType };
 
-            scene.add(obstacle);
-            obstacles.push(obstacle);
+            scene.add(obstacleGroup);
+            obstacles.push(obstacleGroup);
         }
 
         function handleKeyDown(e) {
             if (isGameOver) return;
             if (e.key === "ArrowLeft" && currentLane > -1) currentLane--;
             if (e.key === "ArrowRight" && currentLane < 1) currentLane++;
-            if ((e.key === "ArrowUp" || e.key === " ") && !isJumping) {
+            if ((e.key === "ArrowUp" || e.key === " ") && !isJumping && !isSliding) {
                 isJumping = true;
-                jumpVelocity = 0.25;
+                jumpVelocity = 0.24;
+            }
+            if (e.key === "ArrowDown" && !isJumping && !isSliding) {
+                startSlide();
             }
         }
 
@@ -218,11 +271,19 @@
                 if (diffX > 30 && currentLane < 1) currentLane++;
                 else if (diffX < -30 && currentLane > -1) currentLane--;
             } else {
-                if (diffY < -30 && !isJumping) {
+                if (diffY < -30 && !isJumping && !isSliding) {
                     isJumping = true;
-                    jumpVelocity = 0.25;
+                    jumpVelocity = 0.24;
+                } else if (diffY > 30 && !isJumping && !isSliding) {
+                    startSlide();
                 }
             }
+        }
+
+        function startSlide() {
+            isSliding = true;
+            slideTimer = 0;
+            player.scale.set(1, 0.4, 1); // Shrink scale for sliding
         }
 
         function animate() {
@@ -231,50 +292,62 @@
             if (isGameOver) return;
 
             // Player movement
-            if (appleModel) {
-                // Smooth lane change
-                appleModel.position.x += (laneX[currentLane + 1] - appleModel.position.x) * 0.2;
+            if (player) {
+                player.position.x += (laneX[currentLane + 1] - player.position.x) * 0.2;
 
-                // Jump mechanics
+                // Jump logic
                 if (isJumping) {
-                    appleModel.position.y += jumpVelocity;
+                    player.position.y += jumpVelocity;
                     jumpVelocity += gravity;
-                    if (appleModel.position.y <= 0.6) {
-                        appleModel.position.y = 0.6;
+                    if (player.position.y <= 0) {
+                        player.position.y = 0;
                         isJumping = false;
                     }
                 }
 
-                // Apple Forward Spin
-                appleModel.rotation.x += 0.05;
+                // Slide logic
+                if (isSliding) {
+                    slideTimer += 0.05;
+                    if (slideTimer > 1) {
+                        isSliding = false;
+                        player.scale.set(1, 1, 1); // Reset scale
+                    }
+                }
             }
 
             // Spawn Obstacles
-            if (Math.random() < 0.02) spawnObstacle();
+            if (Math.random() < 0.022) spawnObstacle();
 
-            // Move Obstacles
+            // Move & Check Obstacles
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const obs = obstacles[i];
                 obs.position.z += speed;
 
-                // Collision Detection
-                if (appleModel) {
-                    const distZ = Math.abs(obs.position.z - appleModel.position.z);
-                    const distX = Math.abs(obs.position.x - appleModel.position.x);
-                    const distY = Math.abs(obs.position.y - obs.position.y);
+                if (player) {
+                    const distZ = Math.abs(obs.position.z - player.position.z);
+                    const distX = Math.abs(obs.position.x - player.position.x);
 
-                    if (distZ < 0.8 && distX < 0.8 && appleModel.position.y < 1.2) {
-                        triggerGameOver();
+                    if (distZ < 0.7 && distX < 0.7) {
+                        const type = obs.userData.type;
+
+                        // Collision logic based on barrier height and action
+                        if (type === "nobita" && player.position.y < 0.8) {
+                            triggerGameOver();
+                        } else if (type === "low" && player.position.y < 0.5) {
+                            triggerGameOver();
+                        } else if (type === "high" && !isSliding) {
+                            triggerGameOver();
+                        }
                     }
                 }
 
-                // Remove past obstacles
+                // Remove out-of-screen obstacles
                 if (obs.position.z > 5) {
                     scene.remove(obs);
                     obstacles.splice(i, 1);
                     score += 10;
                     document.getElementById('score').innerText = `Score: ${score}`;
-                    if (score % 100 === 0) speed += 0.02; // Increase speed slowly
+                    if (score % 100 === 0) speed += 0.02;
                 }
             }
 
@@ -290,16 +363,18 @@
         function resetGame() {
             isGameOver = false;
             score = 0;
-            speed = 0.3;
+            speed = 0.35;
             currentLane = 0;
+            isJumping = false;
+            isSliding = false;
+            player.scale.set(1, 1, 1);
+            player.position.set(0, 0, 0);
+
             document.getElementById('score').innerText = `Score: 0`;
             document.getElementById('game-over').style.display = 'none';
 
-            // Clear obstacles
             for (let obs of obstacles) scene.remove(obs);
             obstacles = [];
-
-            if (appleModel) appleModel.position.set(0, 0.6, 0);
         }
 
         function onWindowResize() {
