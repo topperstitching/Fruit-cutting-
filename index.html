@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Fruit Ninja Classic</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            touch-action: none;
+            font-family: sans-serif;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #ffffff;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px #000;
+        }
+    </style>
+    <!-- Three.js 3D Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.min.js"></script>
+</head>
+<body>
+
+    <div id="ui">Score: <span id="score">0</span></div>
+
+    <script>
+        let scene, camera, renderer;
+        let fruits = [];
+        let score = 0;
+        let isSwiping = false;
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+
+        init();
+        animate();
+
+        function init() {
+            // 1. Scene Setup
+            scene = new THREE.Scene();
+            
+            // 2. Camera Setup (Portrait Mode Optimized)
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 8;
+
+            // 3. Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            // 4. Lighting (Real 3D Lighting & Shadows)
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(5, 10, 7);
+            scene.add(dirLight);
+
+            // Event Listeners for Touch/Mouse Swipe
+            window.addEventListener('pointerdown', onPointerDown);
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('resize', onWindowResize);
+
+            // Spawn Fruits Periodically
+            setInterval(spawnFruit, 1500);
+        }
+
+        // Create Real 3D Fruit Mesh
+        function spawnFruit() {
+            const fruitGroup = new THREE.Group();
+
+            // Fruit Body (Real 3D Sphere)
+            const geometry = new THREE.SphereGeometry(0.8, 32, 32);
+            const material = new THREE.MeshStandardMaterial({ 
+                color: Math.random() * 0xffffff, 
+                roughness: 0.3,
+                metalness: 0.1 
+            });
+            
+            const fullFruit = new THREE.Mesh(geometry, material);
+            fullFruit.name = "full_fruit";
+            fruitGroup.add(fullFruit);
+
+            // Initial Position (Bottom of screen)
+            fruitGroup.position.x = (Math.random() - 0.5) * 4;
+            fruitGroup.position.y = -5;
+            fruitGroup.position.z = 0;
+
+            // Physical Launch Velocities
+            fruitGroup.userData = {
+                velocityY: 0.18 + Math.random() * 0.05,
+                velocityX: (Math.random() - 0.5) * 0.04,
+                rotSpeedX: Math.random() * 0.05,
+                rotSpeedY: Math.random() * 0.05,
+                isCut: false
+            };
+
+            scene.add(fruitGroup);
+            fruits.push(fruitGroup);
+        }
+
+        // Swipe Detection
+        function onPointerDown(event) {
+            isSwiping = true;
+            checkIntersection(event);
+        }
+
+        function onPointerMove(event) {
+            if (isSwiping) {
+                checkIntersection(event);
+            }
+        }
+
+        function onPointerUp() {
+            isSwiping = false;
+        }
+
+        function checkIntersection(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            fruits.forEach((fruitGroup) => {
+                if (!fruitGroup.userData.isCut) {
+                    const intersects = raycaster.intersectObjects(fruitGroup.children);
+                    if (intersects.length > 0) {
+                        sliceFruit(fruitGroup);
+                    }
+                }
+            });
+        }
+
+        // Real 3D Slicing Logic (Splits mesh into 2 halves)
+        function sliceFruit(fruitGroup) {
+            fruitGroup.userData.isCut = true;
+
+            // Remove full fruit mesh
+            const originalMesh = fruitGroup.getObjectByName("full_fruit");
+            if (originalMesh) fruitGroup.remove(originalMesh);
+
+            // Create Left Half Mesh (Hemisphere)
+            const leftGeo = new THREE.SphereGeometry(0.8, 32, 32, 0, Math.PI * 2, 0, Math.PI / 2);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff3333, side: THREE.DoubleSide });
+            
+            const leftHalf = new THREE.Mesh(leftGeo, mat);
+            leftHalf.position.x = -0.1;
+            leftHalf.rotation.z = Math.PI / 2;
+
+            // Create Right Half Mesh
+            const rightHalf = new THREE.Mesh(leftGeo, mat);
+            rightHalf.position.x = 0.1;
+            rightHalf.rotation.z = -Math.PI / 2;
+
+            fruitGroup.add(leftHalf);
+            fruitGroup.add(rightHalf);
+
+            // Add Split Mechanics
+            fruitGroup.userData.leftHalf = leftHalf;
+            fruitGroup.userData.rightHalf = rightHalf;
+
+            // Update Score
+            score += 10;
+            document.getElementById('score').innerText = score;
+        }
+
+        // Game Loop (Physics Animation)
+        function animate() {
+            requestAnimationFrame(animate);
+
+            for (let i = fruits.length - 1; i >= 0; i--) {
+                const fruit = fruits[i];
+
+                // Apply Gravity
+                fruit.position.y += fruit.userData.velocityY;
+                fruit.position.x += fruit.userData.velocityX;
+                fruit.userData.velocityY -= 0.005; // Gravity acceleration
+
+                // Rotate Fruit in 3D Space
+                fruit.rotation.x += fruit.userData.rotSpeedX;
+                fruit.rotation.y += fruit.userData.rotSpeedY;
+
+                // If Fruit is Sliced, Separate Halves
+                if (fruit.userData.isCut) {
+                    if (fruit.userData.leftHalf) fruit.userData.leftHalf.position.x -= 0.03;
+                    if (fruit.userData.rightHalf) fruit.userData.rightHalf.position.x += 0.03;
+                }
+
+                // Remove Fruit when off-screen
+                if (fruit.position.y < -6) {
+                    scene.remove(fruit);
+                    fruits.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+    </script>
+</body>
+</html>
