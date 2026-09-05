@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Soccer Pong - Full Screen</title>
+    <title>Neon Soccer Pong - Fixed Layout</title>
     <style>
         * {
             box-sizing: border-box;
@@ -13,8 +13,8 @@
             -webkit-user-select: none;
         }
         html, body {
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background: #0a0d14;
             color: #fff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -22,7 +22,7 @@
             touch-action: none;
         }
 
-        /* Home Page Screen */
+        /* Home Screen */
         #home-screen {
             position: fixed;
             top: 0;
@@ -60,25 +60,24 @@
             box-shadow: 0 0 15px rgba(255, 0, 127, 0.5);
         }
 
-        /* HUD - Score Overlay */
+        /* Top HUD Header */
         .hud {
             position: absolute;
-            top: 15px;
+            top: 10px;
             left: 0;
             width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 20px;
+            padding: 0 15px;
             z-index: 5;
             pointer-events: none;
         }
         .score-box {
-            font-size: 22px;
+            font-size: 18px;
             font-weight: bold;
-            letter-spacing: 1px;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 6px 16px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 14px;
             border-radius: 20px;
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
@@ -87,20 +86,20 @@
             background: #ff3366;
             color: #fff;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 14px;
             font-weight: bold;
-            border-radius: 12px;
+            border-radius: 10px;
             cursor: pointer;
         }
 
-        /* Canvas Fullscreen */
+        /* Fullscreen Canvas */
         canvas {
             display: block;
             width: 100vw;
             height: 100vh;
         }
 
-        /* Modal Popup */
+        /* Exit Modal Popup */
         .modal {
             display: none;
             position: fixed;
@@ -144,14 +143,14 @@
 </head>
 <body>
 
-    <!-- HOME PAGE SCREEN -->
+    <!-- HOME PAGE -->
     <div id="home-screen">
         <h1>NEON SOCCER PONG</h1>
         <p>2 Player Face-to-Face Mode</p>
         <button class="btn" onclick="startGame()">PLAY GAME</button>
     </div>
 
-    <!-- HUD -->
+    <!-- HUD OVERLAY -->
     <div class="hud">
         <div class="score-box">
             <span style="color: #ff007f;">P2: <span id="p2-score">0</span></span>
@@ -164,7 +163,7 @@
     <!-- CANVAS -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- EXIT CONFIRM MODAL -->
+    <!-- EXIT CONFIRMATION MODAL -->
     <div id="exit-modal" class="modal">
         <div class="modal-content">
             <p>Are you sure you want to exit?</p>
@@ -188,18 +187,9 @@
         let p2Score = 0;
         let gameRunning = false;
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            if (p1 && p2) {
-                p1.y = canvas.height - 35;
-                p2.y = 20;
-            }
-        }
-        window.addEventListener("resize", resizeCanvas);
-
-        const paddleWidth = 100;
-        const paddleHeight = 16;
+        // Increased paddle size for easier hitting
+        const paddleWidth = 120;
+        const paddleHeight = 20;
 
         const p1 = {
             x: 0,
@@ -220,13 +210,23 @@
         const ball = {
             x: 0,
             y: 0,
-            r: 10,
+            r: 11,
             vx: 0,
             vy: 5,
             speed: 6,
             color: "#ffffff"
         };
 
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Adjusted positions to keep both paddles safely inside the screen
+            p1.y = canvas.height - 65; 
+            p2.y = 55;
+        }
+
+        window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
         function startGame() {
@@ -300,7 +300,7 @@
                 ball.vx = -ball.vx;
             }
 
-            // Entire Top Line is Goal for P1
+            // Top Wall Miss -> P1 Scores
             if (ball.y - ball.r <= 0) {
                 p1Score++;
                 p1ScoreElem.textContent = p1Score;
@@ -308,7 +308,7 @@
                 return;
             }
 
-            // Entire Bottom Line is Goal for P2
+            // Bottom Wall Miss -> P2 Scores
             if (ball.y + ball.r >= canvas.height) {
                 p2Score++;
                 p2ScoreElem.textContent = p2Score;
@@ -369,17 +369,23 @@
         function draw() {
             drawField();
 
-            // Player 1 Paddle
+            // Player 1 Paddle (Bottom - Cyan)
             ctx.fillStyle = p1.color;
+            ctx.shadowColor = p1.color;
+            ctx.shadowBlur = 10;
             ctx.beginPath();
             ctx.roundRect(p1.x, p1.y, p1.w, p1.h, 8);
             ctx.fill();
 
-            // Player 2 Paddle
+            // Player 2 Paddle (Top - Pink)
             ctx.fillStyle = p2.color;
+            ctx.shadowColor = p2.color;
+            ctx.shadowBlur = 10;
             ctx.beginPath();
             ctx.roundRect(p2.x, p2.y, p2.w, p2.h, 8);
             ctx.fill();
+
+            ctx.shadowBlur = 0;
 
             // Ball
             ctx.fillStyle = ball.color;
