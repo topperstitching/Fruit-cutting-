@@ -2,16 +2,18 @@
 <html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2-Player Neon Soccer Pong</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neon Soccer Pong - 2 Player Vertical</title>
     <style>
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
         }
         body {
-            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            background: #0d0b1d;
             color: #fff;
             display: flex;
             flex-direction: column;
@@ -20,90 +22,161 @@
             min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
-            user-select: none;
+            touch-action: none;
         }
-        h1 {
-            margin-bottom: 10px;
-            font-size: 24px;
-            letter-spacing: 2px;
+
+        /* Home Page Screen */
+        #home-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f0c29, #24243e);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        #home-screen h1 {
+            font-size: 32px;
             color: #00f2fe;
-            text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+            text-shadow: 0 0 15px rgba(0, 242, 254, 0.8);
+            margin-bottom: 10px;
+            text-align: center;
         }
-        .scoreboard {
+        #home-screen p {
+            color: #aaa;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .btn {
+            background: linear-gradient(45deg, #ff007f, #7f00ff);
+            color: #fff;
+            border: none;
+            padding: 14px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.5);
+            transition: transform 0.2s;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Game Header / HUD */
+        .hud {
             display: flex;
             justify-content: space-between;
-            width: 700px;
-            margin-bottom: 15px;
-            background: rgba(255, 255, 255, 0.08);
-            padding: 12px 30px;
-            border-radius: 15px;
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-        .score-card {
-            display: flex;
             align-items: center;
-            gap: 15px;
-            font-size: 18px;
+            width: 360px;
+            margin-bottom: 8px;
+            padding: 0 10px;
+        }
+        .score-box {
+            font-size: 20px;
             font-weight: bold;
+            letter-spacing: 1px;
         }
-        .score-number {
-            font-size: 28px;
-            padding: 2px 14px;
+        .exit-btn {
+            background: #ff3366;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            font-weight: bold;
             border-radius: 8px;
-            background: rgba(0, 0, 0, 0.4);
+            cursor: pointer;
         }
-        #p1-score { color: #ff007f; border: 1px solid #ff007f; }
-        #p2-score { color: #00f2fe; border: 1px solid #00f2fe; }
 
+        /* Game Canvas Container */
         .game-container {
             position: relative;
-            box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.2);
             border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
             overflow: hidden;
-            border: 3px solid rgba(255, 255, 255, 0.2);
         }
         canvas {
             display: block;
-            background-color: #0d1117;
-            touch-action: none;
+            background-color: #0a0d14;
         }
-        .instructions {
-            margin-top: 15px;
-            font-size: 13px;
-            color: #ccc;
+
+        /* Modal Popup */
+        .modal {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 20;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: #1a1a2e;
+            padding: 25px;
+            border-radius: 15px;
             text-align: center;
-            background: rgba(0, 0, 0, 0.4);
-            padding: 8px 20px;
-            border-radius: 20px;
-            display: flex;
-            gap: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 280px;
         }
+        .modal-content p {
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        .modal-btn {
+            padding: 8px 20px;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-yes { background: #ff3366; color: white; }
+        .btn-no { background: #444; color: white; }
     </style>
 </head>
 <body>
 
-    <h1>2-PLAYER NEON SOCCER</h1>
-
-    <div class="scoreboard">
-        <div class="score-card">
-            <span style="color: #ff007f;">Player 1 (Left)</span>
-            <span id="p1-score" class="score-number">0</span>
-        </div>
-        <div class="score-card">
-            <span id="p2-score" class="score-number">0</span>
-            <span style="color: #00f2fe;">Player 2 (Right)</span>
-        </div>
+    <!-- HOME PAGE SCREEN -->
+    <div id="home-screen">
+        <h1>NEON SOCCER PONG</h1>
+        <p>2 Player Face-to-Face Mode</p>
+        <button class="btn" onclick="startGame()">PLAY GAME</button>
     </div>
 
+    <!-- GAME HEADERS -->
+    <div class="hud">
+        <div class="score-box">
+            <span style="color: #ff007f;">P2: <span id="p2-score">0</span></span>
+            &nbsp;|&nbsp;
+            <span style="color: #00f2fe;">P1: <span id="p1-score">0</span></span>
+        </div>
+        <button class="exit-btn" onclick="showExitModal()">EXIT</button>
+    </div>
+
+    <!-- CANVAS -->
     <div class="game-container">
-        <canvas id="gameCanvas" width="700" height="450"></canvas>
+        <canvas id="gameCanvas" width="360" height="600"></canvas>
     </div>
 
-    <div class="instructions">
-        <span><b>Player 1:</b> [W] [S] keys / Screen Left Touch</span>
-        <span><b>Player 2:</b> [↑] [↓] keys / Screen Right Touch</span>
+    <!-- EXIT CONFIRM MODAL -->
+    <div id="exit-modal" class="modal">
+        <div class="modal-content">
+            <p>Are you sure you want to exit?</p>
+            <div class="modal-buttons">
+                <button class="modal-btn btn-yes" onclick="confirmExit()">Yes</button>
+                <button class="modal-btn btn-no" onclick="hideExitModal()">No</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -112,240 +185,240 @@
 
         const p1ScoreElem = document.getElementById("p1-score");
         const p2ScoreElem = document.getElementById("p2-score");
+        const homeScreen = document.getElementById("home-screen");
+        const exitModal = document.getElementById("exit-modal");
 
-        let player1Score = 0;
-        let player2Score = 0;
+        let p1Score = 0;
+        let p2Score = 0;
+        let gameRunning = false;
 
-        const goalHeight = 160;
-        const goalY = (canvas.height - goalHeight) / 2;
-        const paddleWidth = 14;
-        const paddleHeight = 90;
-        const paddleSpeed = 8;
+        // Dimensions
+        const goalWidth = 140;
+        const goalX = (canvas.width - goalWidth) / 2;
+        const paddleWidth = 85;
+        const paddleHeight = 14;
 
+        // Player 1 (Bottom - Blue)
         const p1 = {
-            x: 25,
-            y: canvas.height / 2 - paddleHeight / 2,
+            x: canvas.width / 2 - paddleWidth / 2,
+            y: canvas.height - 30,
             w: paddleWidth,
             h: paddleHeight,
-            color: "#ff007f",
-            up: false,
-            down: false
+            color: "#00f2fe"
         };
 
+        // Player 2 (Top - Pink)
         const p2 = {
-            x: canvas.width - 25 - paddleWidth,
-            y: canvas.height / 2 - paddleHeight / 2,
+            x: canvas.width / 2 - paddleWidth / 2,
+            y: 16,
             w: paddleWidth,
             h: paddleHeight,
-            color: "#00f2fe",
-            up: false,
-            down: false
+            color: "#ff007f"
         };
 
-        // Faster ball initial speed
-        const initialSpeed = 9;
+        // Ball Physics
         const ball = {
             x: canvas.width / 2,
             y: canvas.height / 2,
-            r: 10,
-            vx: initialSpeed,
-            vy: 5,
-            speed: initialSpeed,
-            color: "#fff"
+            r: 9,
+            vx: 0,
+            vy: 4,
+            speed: 5.5,
+            color: "#ffffff"
         };
 
-        // Keyboard Controls
-        window.addEventListener("keydown", (e) => {
-            if (e.key === "w" || e.key === "W") p1.up = true;
-            if (e.key === "s" || e.key === "S") p1.down = true;
-            if (e.key === "ArrowUp") p2.up = true;
-            if (e.key === "ArrowDown") p2.down = true;
-        });
+        function startGame() {
+            homeScreen.style.display = "none";
+            p1Score = 0;
+            p2Score = 0;
+            p1ScoreElem.textContent = "0";
+            p2ScoreElem.textContent = "0";
+            resetBall(1);
+            gameRunning = true;
+        }
 
-        window.addEventListener("keyup", (e) => {
-            if (e.key === "w" || e.key === "W") p1.up = false;
-            if (e.key === "s" || e.key === "S") p1.down = false;
-            if (e.key === "ArrowUp") p2.up = false;
-            if (e.key === "ArrowDown") p2.down = false;
-        });
+        function showExitModal() {
+            gameRunning = false;
+            exitModal.style.display = "flex";
+        }
 
-        // Touch Controls for 2 Players (Multi-touch support)
-        function handleTouch(e) {
-            e.preventDefault();
+        function hideExitModal() {
+            exitModal.style.display = "none";
+            gameRunning = true;
+        }
+
+        function confirmExit() {
+            exitModal.style.display = "none";
+            homeScreen.style.display = "flex";
+            gameRunning = false;
+        }
+
+        // Touch & Mouse Movement
+        function handleInput(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < e.touches.length; i++) {
-                let touch = e.touches[i];
-                let touchX = touch.clientX - rect.left;
-                let touchY = touch.clientY - rect.top;
+            let touchX = clientX - rect.left;
+            let touchY = clientY - rect.top;
 
-                if (touchX < canvas.width / 2) {
-                    p1.y = Math.max(5, Math.min(canvas.height - p1.h - 5, touchY - p1.h / 2));
-                } else {
-                    p2.y = Math.max(5, Math.min(canvas.height - p2.h - 5, touchY - p2.h / 2));
-                }
+            // Bottom Half -> Player 1 Controls
+            if (touchY > canvas.height / 2) {
+                p1.x = Math.max(5, Math.min(canvas.width - p1.w - 5, touchX - p1.w / 2));
+            } 
+            // Top Half -> Player 2 Controls
+            else {
+                p2.x = Math.max(5, Math.min(canvas.width - p2.w - 5, touchX - p2.w / 2));
             }
         }
 
-        canvas.addEventListener("touchstart", handleTouch, { passive: false });
-        canvas.addEventListener("touchmove", handleTouch, { passive: false });
+        canvas.addEventListener("mousemove", (e) => {
+            if (gameRunning) handleInput(e.clientX, e.clientY);
+        });
 
-        function resetBall(scorer) {
+        canvas.addEventListener("touchmove", (e) => {
+            if (!gameRunning) return;
+            e.preventDefault();
+            for (let i = 0; i < e.touches.length; i++) {
+                handleInput(e.touches[i].clientX, e.touches[i].clientY);
+            }
+        }, { passive: false });
+
+        function resetBall(targetPlayer) {
             ball.x = canvas.width / 2;
             ball.y = canvas.height / 2;
-            ball.speed = initialSpeed;
-            ball.vx = (scorer === 1 ? 1 : -1) * ball.speed;
-            ball.vy = (Math.random() > 0.5 ? 1 : -1) * (4 + Math.random() * 3);
-        }
-
-        function checkPaddleCollision(b, p) {
-            return (
-                b.x - b.r < p.x + p.w &&
-                b.x + b.r > p.x &&
-                b.y + b.r > p.y &&
-                b.y - b.r < p.y + p.h
-            );
-        }
-
-        function updatePaddles() {
-            if (p1.up && p1.y > 5) p1.y -= paddleSpeed;
-            if (p1.down && p1.y < canvas.height - p1.h - 5) p1.y += paddleSpeed;
-
-            if (p2.up && p2.y > 5) p2.y -= paddleSpeed;
-            if (p2.down && p2.y < canvas.height - p2.h - 5) p2.y += paddleSpeed;
+            ball.speed = 5.5;
+            ball.vy = (targetPlayer === 1 ? 1 : -1) * ball.speed;
+            ball.vx = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2);
         }
 
         function update() {
-            updatePaddles();
+            if (!gameRunning) return;
 
             ball.x += ball.vx;
             ball.y += ball.vy;
 
-            // Bounce off Top & Bottom Walls
-            if (ball.y - ball.r < 0) {
-                ball.y = ball.r;
-                ball.vy = -ball.vy;
-            } else if (ball.y + ball.r > canvas.height) {
-                ball.y = canvas.height - ball.r;
-                ball.vy = -ball.vy;
+            // Side Wall Bounce
+            if (ball.x - ball.r <= 0) {
+                ball.x = ball.r;
+                ball.vx = -ball.vx;
+            } else if (ball.x + ball.r >= canvas.width) {
+                ball.x = canvas.width - ball.r;
+                ball.vx = -ball.vx;
             }
 
-            // Left Side: Goal check vs Wall bounce
-            if (ball.x - ball.r <= 0) {
-                if (ball.y >= goalY && ball.y <= goalY + goalHeight) {
-                    player2Score++;
-                    p2ScoreElem.textContent = player2Score;
+            // Top Goal / Wall Logic
+            if (ball.y - ball.r <= 0) {
+                if (ball.x >= goalX && ball.x <= goalX + goalWidth) {
+                    // P1 Scores Goal
+                    p1Score++;
+                    p1ScoreElem.textContent = p1Score;
                     resetBall(2);
                     return;
                 } else {
-                    ball.x = ball.r;
-                    ball.vx = -ball.vx;
+                    ball.y = ball.r;
+                    ball.vy = -ball.vy;
                 }
             }
 
-            // Right Side: Goal check vs Wall bounce
-            if (ball.x + ball.r >= canvas.width) {
-                if (ball.y >= goalY && ball.y <= goalY + goalHeight) {
-                    player1Score++;
-                    p1ScoreElem.textContent = player1Score;
+            // Bottom Goal / Wall Logic
+            if (ball.y + ball.r >= canvas.height) {
+                if (ball.x >= goalX && ball.x <= goalX + goalWidth) {
+                    // P2 Scores Goal
+                    p2Score++;
+                    p2ScoreElem.textContent = p2Score;
                     resetBall(1);
                     return;
                 } else {
-                    ball.x = canvas.width - ball.r;
-                    ball.vx = -ball.vx;
+                    ball.y = canvas.height - ball.r;
+                    ball.vy = -ball.vy;
                 }
             }
 
-            // Paddle 1 Collision
-            if (checkPaddleCollision(ball, p1)) {
-                ball.x = p1.x + p1.w + ball.r;
-                let collidePoint = (ball.y - (p1.y + p1.h / 2)) / (p1.h / 2);
-                let angleRad = (Math.PI / 3) * collidePoint;
-                ball.speed = Math.min(ball.speed + 0.4, 18); // Gradually speeds up
-                ball.vx = ball.speed * Math.cos(angleRad);
-                ball.vy = ball.speed * Math.sin(angleRad);
+            // Player 1 Paddle Collision (Bottom)
+            if (
+                ball.y + ball.r >= p1.y &&
+                ball.y - ball.r <= p1.y + p1.h &&
+                ball.x + ball.r >= p1.x &&
+                ball.x - ball.r <= p1.x + p1.w
+            ) {
+                ball.y = p1.y - ball.r;
+                let hitOffset = (ball.x - (p1.x + p1.w / 2)) / (p1.w / 2); // -1 to 1
+                let angle = hitOffset * (Math.PI / 3); // Max 60 degree bounce
+                ball.speed = Math.min(ball.speed + 0.3, 11);
+                ball.vx = ball.speed * Math.sin(angle);
+                ball.vy = -ball.speed * Math.cos(angle);
             }
 
-            // Paddle 2 Collision
-            if (checkPaddleCollision(ball, p2)) {
-                ball.x = p2.x - ball.r;
-                let collidePoint = (ball.y - (p2.y + p2.h / 2)) / (p2.h / 2);
-                let angleRad = (Math.PI / 3) * collidePoint;
-                ball.speed = Math.min(ball.speed + 0.4, 18);
-                ball.vx = -ball.speed * Math.cos(angleRad);
-                ball.vy = ball.speed * Math.sin(angleRad);
+            // Player 2 Paddle Collision (Top)
+            if (
+                ball.y - ball.r <= p2.y + p2.h &&
+                ball.y + ball.r >= p2.y &&
+                ball.x + ball.r >= p2.x &&
+                ball.x - ball.r <= p2.x + p2.w
+            ) {
+                ball.y = p2.y + p2.h + ball.r;
+                let hitOffset = (ball.x - (p2.x + p2.w / 2)) / (p2.w / 2);
+                let angle = hitOffset * (Math.PI / 3);
+                ball.speed = Math.min(ball.speed + 0.3, 11);
+                ball.vx = ball.speed * Math.sin(angle);
+                ball.vy = ball.speed * Math.cos(angle);
             }
         }
 
-        function drawBackground() {
+        function drawField() {
             ctx.fillStyle = "#0a0d14";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Center Line
             ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-            ctx.setLineDash([8, 8]);
-            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
             ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
             ctx.stroke();
             ctx.setLineDash([]);
 
             // Center Circle
             ctx.beginPath();
-            ctx.arc(canvas.width / 2, canvas.height / 2, 60, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-            ctx.lineWidth = 2;
+            ctx.arc(canvas.width / 2, canvas.height / 2, 45, 0, Math.PI * 2);
             ctx.stroke();
 
-            // Left Goal Net Area
+            // Top Goal Box (Player 2 Side)
             ctx.fillStyle = "rgba(255, 0, 127, 0.15)";
-            ctx.fillRect(0, goalY, 15, goalHeight);
+            ctx.fillRect(goalX, 0, goalWidth, 12);
             ctx.strokeStyle = "#ff007f";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(0, goalY, 15, goalHeight);
+            ctx.lineWidth = 2;
+            ctx.strokeRect(goalX, 0, goalWidth, 12);
 
-            // Right Goal Net Area
+            // Bottom Goal Box (Player 1 Side)
             ctx.fillStyle = "rgba(0, 242, 254, 0.15)";
-            ctx.fillRect(canvas.width - 15, goalY, 15, goalHeight);
+            ctx.fillRect(goalX, canvas.height - 12, goalWidth, 12);
             ctx.strokeStyle = "#00f2fe";
-            ctx.lineWidth = 3;
-            ctx.strokeRect(canvas.width - 15, goalY, 15, goalHeight);
+            ctx.strokeRect(goalX, canvas.height - 12, goalWidth, 12);
         }
 
-        function drawPaddle(p) {
-            ctx.fillStyle = p.color;
-            ctx.shadowColor = p.color;
-            ctx.shadowBlur = 12;
-            
+        function draw() {
+            drawField();
+
+            // Draw Paddles
+            ctx.fillStyle = p1.color;
             ctx.beginPath();
-            ctx.roundRect(p.x, p.y, p.w, p.h, 6);
+            ctx.roundRect(p1.x, p1.y, p1.w, p1.h, 6);
             ctx.fill();
 
-            ctx.shadowBlur = 0;
-        }
+            ctx.fillStyle = p2.color;
+            ctx.beginPath();
+            ctx.roundRect(p2.x, p2.y, p2.w, p2.h, 6);
+            ctx.fill();
 
-        function drawBall() {
+            // Draw Ball
             ctx.fillStyle = ball.color;
-            ctx.shadowColor = "#ffffff";
-            ctx.shadowBlur = 15;
-
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
             ctx.fill();
-
-            ctx.shadowBlur = 0;
-        }
-
-        function render() {
-            drawBackground();
-            drawPaddle(p1);
-            drawPaddle(p2);
-            drawBall();
         }
 
         function loop() {
             update();
-            render();
+            draw();
             requestAnimationFrame(loop);
         }
 
