@@ -2,8 +2,8 @@
 <html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Neon Soccer Pong - 2 Player Vertical</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Soccer Pong - Full Screen</title>
     <style>
         * {
             box-sizing: border-box;
@@ -12,14 +12,11 @@
             user-select: none;
             -webkit-user-select: none;
         }
-        body {
-            background: #0d0b1d;
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #0a0d14;
             color: #fff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             overflow: hidden;
             touch-action: none;
@@ -27,9 +24,11 @@
 
         /* Home Page Screen */
         #home-screen {
-            position: absolute;
-            width: 100%;
-            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
             background: linear-gradient(135deg, #0f0c29, #24243e);
             display: flex;
             flex-direction: column;
@@ -59,57 +58,56 @@
             border-radius: 30px;
             cursor: pointer;
             box-shadow: 0 0 15px rgba(255, 0, 127, 0.5);
-            transition: transform 0.2s;
-        }
-        .btn:active {
-            transform: scale(0.95);
         }
 
-        /* Game Header / HUD */
+        /* HUD - Score Overlay */
         .hud {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            width: 360px;
-            margin-bottom: 8px;
-            padding: 0 10px;
+            padding: 0 20px;
+            z-index: 5;
+            pointer-events: none;
         }
         .score-box {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             letter-spacing: 1px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         .exit-btn {
+            pointer-events: auto;
             background: #ff3366;
             color: #fff;
             border: none;
-            padding: 6px 14px;
+            padding: 8px 16px;
             font-weight: bold;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
         }
 
-        /* Game Canvas Container */
-        .game-container {
-            position: relative;
-            box-shadow: 0 0 25px rgba(0, 242, 254, 0.2);
-            border-radius: 12px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            overflow: hidden;
-        }
+        /* Canvas Fullscreen */
         canvas {
             display: block;
-            background-color: #0a0d14;
+            width: 100vw;
+            height: 100vh;
         }
 
         /* Modal Popup */
         .modal {
             display: none;
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background: rgba(0, 0, 0, 0.85);
             z-index: 20;
             flex-direction: column;
@@ -122,7 +120,7 @@
             border-radius: 15px;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            max-width: 280px;
+            max-width: 290px;
         }
         .modal-content p {
             margin-bottom: 20px;
@@ -134,7 +132,7 @@
             justify-content: center;
         }
         .modal-btn {
-            padding: 8px 20px;
+            padding: 10px 24px;
             border-radius: 8px;
             border: none;
             font-weight: bold;
@@ -153,7 +151,7 @@
         <button class="btn" onclick="startGame()">PLAY GAME</button>
     </div>
 
-    <!-- GAME HEADERS -->
+    <!-- HUD -->
     <div class="hud">
         <div class="score-box">
             <span style="color: #ff007f;">P2: <span id="p2-score">0</span></span>
@@ -164,9 +162,7 @@
     </div>
 
     <!-- CANVAS -->
-    <div class="game-container">
-        <canvas id="gameCanvas" width="360" height="600"></canvas>
-    </div>
+    <canvas id="gameCanvas"></canvas>
 
     <!-- EXIT CONFIRM MODAL -->
     <div id="exit-modal" class="modal">
@@ -192,40 +188,46 @@
         let p2Score = 0;
         let gameRunning = false;
 
-        // Dimensions
-        const goalWidth = 140;
-        const goalX = (canvas.width - goalWidth) / 2;
-        const paddleWidth = 85;
-        const paddleHeight = 14;
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            if (p1 && p2) {
+                p1.y = canvas.height - 35;
+                p2.y = 20;
+            }
+        }
+        window.addEventListener("resize", resizeCanvas);
 
-        // Player 1 (Bottom - Blue)
+        const paddleWidth = 100;
+        const paddleHeight = 16;
+
         const p1 = {
-            x: canvas.width / 2 - paddleWidth / 2,
-            y: canvas.height - 30,
+            x: 0,
+            y: 0,
             w: paddleWidth,
             h: paddleHeight,
             color: "#00f2fe"
         };
 
-        // Player 2 (Top - Pink)
         const p2 = {
-            x: canvas.width / 2 - paddleWidth / 2,
-            y: 16,
+            x: 0,
+            y: 0,
             w: paddleWidth,
             h: paddleHeight,
             color: "#ff007f"
         };
 
-        // Ball Physics
         const ball = {
-            x: canvas.width / 2,
-            y: canvas.height / 2,
-            r: 9,
+            x: 0,
+            y: 0,
+            r: 10,
             vx: 0,
-            vy: 4,
-            speed: 5.5,
+            vy: 5,
+            speed: 6,
             color: "#ffffff"
         };
+
+        resizeCanvas();
 
         function startGame() {
             homeScreen.style.display = "none";
@@ -233,6 +235,8 @@
             p2Score = 0;
             p1ScoreElem.textContent = "0";
             p2ScoreElem.textContent = "0";
+            p1.x = canvas.width / 2 - p1.w / 2;
+            p2.x = canvas.width / 2 - p2.w / 2;
             resetBall(1);
             gameRunning = true;
         }
@@ -253,19 +257,11 @@
             gameRunning = false;
         }
 
-        // Touch & Mouse Movement
         function handleInput(clientX, clientY) {
-            const rect = canvas.getBoundingClientRect();
-            let touchX = clientX - rect.left;
-            let touchY = clientY - rect.top;
-
-            // Bottom Half -> Player 1 Controls
-            if (touchY > canvas.height / 2) {
-                p1.x = Math.max(5, Math.min(canvas.width - p1.w - 5, touchX - p1.w / 2));
-            } 
-            // Top Half -> Player 2 Controls
-            else {
-                p2.x = Math.max(5, Math.min(canvas.width - p2.w - 5, touchX - p2.w / 2));
+            if (clientY > canvas.height / 2) {
+                p1.x = Math.max(5, Math.min(canvas.width - p1.w - 5, clientX - p1.w / 2));
+            } else {
+                p2.x = Math.max(5, Math.min(canvas.width - p2.w - 5, clientX - p2.w / 2));
             }
         }
 
@@ -284,7 +280,7 @@
         function resetBall(targetPlayer) {
             ball.x = canvas.width / 2;
             ball.y = canvas.height / 2;
-            ball.speed = 5.5;
+            ball.speed = 6;
             ball.vy = (targetPlayer === 1 ? 1 : -1) * ball.speed;
             ball.vx = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2);
         }
@@ -304,32 +300,20 @@
                 ball.vx = -ball.vx;
             }
 
-            // Top Goal / Wall Logic
+            // Entire Top Line is Goal for P1
             if (ball.y - ball.r <= 0) {
-                if (ball.x >= goalX && ball.x <= goalX + goalWidth) {
-                    // P1 Scores Goal
-                    p1Score++;
-                    p1ScoreElem.textContent = p1Score;
-                    resetBall(2);
-                    return;
-                } else {
-                    ball.y = ball.r;
-                    ball.vy = -ball.vy;
-                }
+                p1Score++;
+                p1ScoreElem.textContent = p1Score;
+                resetBall(2);
+                return;
             }
 
-            // Bottom Goal / Wall Logic
+            // Entire Bottom Line is Goal for P2
             if (ball.y + ball.r >= canvas.height) {
-                if (ball.x >= goalX && ball.x <= goalX + goalWidth) {
-                    // P2 Scores Goal
-                    p2Score++;
-                    p2ScoreElem.textContent = p2Score;
-                    resetBall(1);
-                    return;
-                } else {
-                    ball.y = canvas.height - ball.r;
-                    ball.vy = -ball.vy;
-                }
+                p2Score++;
+                p2ScoreElem.textContent = p2Score;
+                resetBall(1);
+                return;
             }
 
             // Player 1 Paddle Collision (Bottom)
@@ -340,9 +324,9 @@
                 ball.x - ball.r <= p1.x + p1.w
             ) {
                 ball.y = p1.y - ball.r;
-                let hitOffset = (ball.x - (p1.x + p1.w / 2)) / (p1.w / 2); // -1 to 1
-                let angle = hitOffset * (Math.PI / 3); // Max 60 degree bounce
-                ball.speed = Math.min(ball.speed + 0.3, 11);
+                let hitOffset = (ball.x - (p1.x + p1.w / 2)) / (p1.w / 2);
+                let angle = hitOffset * (Math.PI / 3);
+                ball.speed = Math.min(ball.speed + 0.3, 12);
                 ball.vx = ball.speed * Math.sin(angle);
                 ball.vy = -ball.speed * Math.cos(angle);
             }
@@ -357,7 +341,7 @@
                 ball.y = p2.y + p2.h + ball.r;
                 let hitOffset = (ball.x - (p2.x + p2.w / 2)) / (p2.w / 2);
                 let angle = hitOffset * (Math.PI / 3);
-                ball.speed = Math.min(ball.speed + 0.3, 11);
+                ball.speed = Math.min(ball.speed + 0.3, 12);
                 ball.vx = ball.speed * Math.sin(angle);
                 ball.vy = ball.speed * Math.cos(angle);
             }
@@ -369,7 +353,7 @@
 
             // Center Line
             ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-            ctx.setLineDash([6, 6]);
+            ctx.setLineDash([8, 8]);
             ctx.beginPath();
             ctx.moveTo(0, canvas.height / 2);
             ctx.lineTo(canvas.width, canvas.height / 2);
@@ -378,38 +362,26 @@
 
             // Center Circle
             ctx.beginPath();
-            ctx.arc(canvas.width / 2, canvas.height / 2, 45, 0, Math.PI * 2);
+            ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, Math.PI * 2);
             ctx.stroke();
-
-            // Top Goal Box (Player 2 Side)
-            ctx.fillStyle = "rgba(255, 0, 127, 0.15)";
-            ctx.fillRect(goalX, 0, goalWidth, 12);
-            ctx.strokeStyle = "#ff007f";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(goalX, 0, goalWidth, 12);
-
-            // Bottom Goal Box (Player 1 Side)
-            ctx.fillStyle = "rgba(0, 242, 254, 0.15)";
-            ctx.fillRect(goalX, canvas.height - 12, goalWidth, 12);
-            ctx.strokeStyle = "#00f2fe";
-            ctx.strokeRect(goalX, canvas.height - 12, goalWidth, 12);
         }
 
         function draw() {
             drawField();
 
-            // Draw Paddles
+            // Player 1 Paddle
             ctx.fillStyle = p1.color;
             ctx.beginPath();
-            ctx.roundRect(p1.x, p1.y, p1.w, p1.h, 6);
+            ctx.roundRect(p1.x, p1.y, p1.w, p1.h, 8);
             ctx.fill();
 
+            // Player 2 Paddle
             ctx.fillStyle = p2.color;
             ctx.beginPath();
-            ctx.roundRect(p2.x, p2.y, p2.w, p2.h, 6);
+            ctx.roundRect(p2.x, p2.y, p2.w, p2.h, 8);
             ctx.fill();
 
-            // Draw Ball
+            // Ball
             ctx.fillStyle = ball.color;
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
