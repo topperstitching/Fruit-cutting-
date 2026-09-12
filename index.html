@@ -4,6 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Neon Soccer Pong - Fixed Layout</title>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // TODO: अपने Firebase प्रोजेक्ट की कॉन्फ़िगरेशन यहाँ डालें
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        window.handleGoogleLogin = function() {
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    // लॉगिन सफल होने पर गेम शुरू करें
+                    console.log("Logged in as:", result.user.displayName);
+                    runGameAfterLogin();
+                })
+                .catch((error) => {
+                    console.error("Login Error:", error.message);
+                    alert("লগइन विफल रहा: " + error.message);
+                });
+        };
+
+        window.handleLogout = function() {
+            signOut(auth).then(() => {
+                showHomeScreen();
+            }).catch((error) => {
+                console.error("Logout Error", error);
+            });
+        };
+
+        // चेक करें कि यूजर पहले से लॉग-इन है या नहीं
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // अगर पहले से लॉग-इन है तो सीधा होम स्क्रीन पर प्ले बटन दिखने दें
+                console.log("User active:", user.email);
+            }
+        });
+    </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -58,6 +108,9 @@
             border-radius: 30px;
             cursor: pointer;
             box-shadow: 0 0 15px rgba(255, 0, 127, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         /* Top HUD Header */
@@ -147,7 +200,11 @@
     <div id="home-screen">
         <h1>NEON SOCCER PONG</h1>
         <p>2 Player Face-to-Face Mode</p>
-        <button class="btn" onclick="startGame()">PLAY GAME</button>
+        <!-- यहाँ क्लिक करने पर गूगल लॉगिन पॉप-अप खुलेगा -->
+        <button class="btn" onclick="handleGoogleLogin()">
+            <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#ffffff" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#ffffff" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#ffffff" d="M5.3 14.7c-.2-.8-.4-1.7-.4-2.7s.2-1.9.4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#ffffff" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 15C3.5 18.8 7.4 23 12 23z"/></svg>
+            GOOGLE SIGN IN & PLAY
+        </button>
     </div>
 
     <!-- HUD OVERLAY -->
@@ -187,41 +244,16 @@
         let p2Score = 0;
         let gameRunning = false;
 
-        // Increased paddle size for easier hitting
         const paddleWidth = 120;
         const paddleHeight = 20;
 
-        const p1 = {
-            x: 0,
-            y: 0,
-            w: paddleWidth,
-            h: paddleHeight,
-            color: "#00f2fe"
-        };
-
-        const p2 = {
-            x: 0,
-            y: 0,
-            w: paddleWidth,
-            h: paddleHeight,
-            color: "#ff007f"
-        };
-
-        const ball = {
-            x: 0,
-            y: 0,
-            r: 11,
-            vx: 0,
-            vy: 5,
-            speed: 6,
-            color: "#ffffff"
-        };
+        const p1 = { x: 0, y: 0, w: paddleWidth, h: paddleHeight, color: "#00f2fe" };
+        const p2 = { x: 0, y: 0, w: paddleWidth, h: paddleHeight, color: "#ff007f" };
+        const ball = { x: 0, y: 0, r: 11, vx: 0, vy: 5, speed: 6, color: "#ffffff" };
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            
-            // Adjusted positions to keep both paddles safely inside the screen
             p1.y = canvas.height - 65; 
             p2.y = 55;
         }
@@ -229,7 +261,7 @@
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
-        function startGame() {
+        function runGameAfterLogin() {
             homeScreen.style.display = "none";
             p1Score = 0;
             p2Score = 0;
@@ -239,6 +271,11 @@
             p2.x = canvas.width / 2 - p2.w / 2;
             resetBall(1);
             gameRunning = true;
+        }
+
+        function showHomeScreen() {
+            homeScreen.style.display = "flex";
+            gameRunning = false;
         }
 
         function showExitModal() {
@@ -253,8 +290,8 @@
 
         function confirmExit() {
             exitModal.style.display = "none";
-            homeScreen.style.display = "flex";
-            gameRunning = false;
+            // यहाँ चाहें तो handleLogout() कॉल करके लॉग-आउट भी करा सकते हैं
+            showHomeScreen();
         }
 
         function handleInput(clientX, clientY) {
@@ -291,7 +328,6 @@
             ball.x += ball.vx;
             ball.y += ball.vy;
 
-            // Side Wall Bounce
             if (ball.x - ball.r <= 0) {
                 ball.x = ball.r;
                 ball.vx = -ball.vx;
@@ -300,7 +336,6 @@
                 ball.vx = -ball.vx;
             }
 
-            // Top Wall Miss -> P1 Scores
             if (ball.y - ball.r <= 0) {
                 p1Score++;
                 p1ScoreElem.textContent = p1Score;
@@ -308,7 +343,6 @@
                 return;
             }
 
-            // Bottom Wall Miss -> P2 Scores
             if (ball.y + ball.r >= canvas.height) {
                 p2Score++;
                 p2ScoreElem.textContent = p2Score;
@@ -316,7 +350,6 @@
                 return;
             }
 
-            // Player 1 Paddle Collision (Bottom)
             if (
                 ball.y + ball.r >= p1.y &&
                 ball.y - ball.r <= p1.y + p1.h &&
@@ -331,7 +364,6 @@
                 ball.vy = -ball.speed * Math.cos(angle);
             }
 
-            // Player 2 Paddle Collision (Top)
             if (
                 ball.y - ball.r <= p2.y + p2.h &&
                 ball.y + ball.r >= p2.y &&
@@ -351,7 +383,6 @@
             ctx.fillStyle = "#0a0d14";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Center Line
             ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
             ctx.setLineDash([8, 8]);
             ctx.beginPath();
@@ -360,7 +391,6 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Center Circle
             ctx.beginPath();
             ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, Math.PI * 2);
             ctx.stroke();
@@ -369,7 +399,6 @@
         function draw() {
             drawField();
 
-            // Player 1 Paddle (Bottom - Cyan)
             ctx.fillStyle = p1.color;
             ctx.shadowColor = p1.color;
             ctx.shadowBlur = 10;
@@ -377,7 +406,6 @@
             ctx.roundRect(p1.x, p1.y, p1.w, p1.h, 8);
             ctx.fill();
 
-            // Player 2 Paddle (Top - Pink)
             ctx.fillStyle = p2.color;
             ctx.shadowColor = p2.color;
             ctx.shadowBlur = 10;
@@ -387,8 +415,8 @@
 
             ctx.shadowBlur = 0;
 
-            // Ball
             ctx.fillStyle = ball.color;
+            style = ball.color;
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
             ctx.fill();
