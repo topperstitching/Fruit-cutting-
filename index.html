@@ -3,64 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Soccer Pong - Google Login</title>
+    <title>Neon Soccer Pong - Firebase Login</title>
     
     <!-- Firebase SDKs via CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+        // यहाँ अपनी असली Firebase प्रोजेक्ट की डिटेल्स डालें
         const firebaseConfig = {
-          apiKey: "AIzaSyDrsMo4f15JZxUk8LkNYqlYqfzEHOQ8Q4w",
-          authDomain: "toppersewingmachine.firebaseapp.com",
-          databaseURL: "https://toppersewingmachine-default-rtdb.firebaseio.com",
-          projectId: "toppersewingmachine",
-          storageBucket: "toppersewingmachine.firebasestorage.app",
-          messagingSenderId: "281176461879",
-          appId: "1:281176461879:web:97648170de01d8c975e5b2",
-          measurementId: "G-GRP6EXGE3L"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_AUTH_DOMAIN",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_STORAGE_BUCKET",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // 1. गूगल लॉगिन बटन क्लिक होने पर रीडायरेक्ट करेगा (about:blank एरर नहीं आएगा)
-        window.loginWithGoogle = function() {
+        // गूगल लॉगिन बटन क्लिक होने पर रीडायरेक्ट करेगा
+        window.handleGoogleLogin = function() {
             signInWithRedirect(auth, provider);
         };
 
-        // 2. गूगल से लॉगिन होने के बाद वापस आने पर रिजल्ट चेक होगा
+        // पेज लोड होने पर चेक करेगा कि लॉगिन पूरा हुआ या नहीं
         getRedirectResult(auth)
             .then((result) => {
                 if (result) {
-                    console.log("Google Login Success:", result.user.email);
-                    hideLoginModal();
-                    if (typeof window.startGameAfterLogin === "function") {
-                        window.startGameAfterLogin();
-                    }
+                    console.log("Login Success:", result.user.email);
+                    startGameAfterLogin();
                 }
             }).catch((error) => {
-                console.error("Google Login Error:", error);
-                document.getElementById("login-status").innerText = "एरर: " + error.message;
+                console.error("Login Error:", error.message);
+                alert("लॉगिन विफल रहा: " + error.message);
             });
 
-        // 3. चेक करें कि यूजर पहले से लॉग-इन है या नहीं
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                hideLoginModal();
-                if (typeof window.startGameAfterLogin === "function") {
-                    window.startGameAfterLogin();
+            // अगर यूजर पहले से लॉग-इन है तो ऑटोमैटिक गेम शुरू करने के लिए
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    console.log("User already logged in:", user.email);
                 }
-            }
-        });
-
-        // 4. लॉगआउट फंक्शन
-        window.logoutUser = function() {
-            signOut(auth).then(() => {
-                location.reload();
             });
-        };
     </script>
 
     <style>
@@ -81,6 +67,7 @@
             touch-action: none;
         }
 
+        /* Home Screen */
         #home-screen {
             position: fixed;
             top: 0;
@@ -121,73 +108,7 @@
             gap: 10px;
         }
 
-        #login-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.85);
-            z-index: 30;
-            justify-content: center;
-            align-items: center;
-        }
-        .login-box {
-            background: #161b22;
-            padding: 30px 20px;
-            border-radius: 20px;
-            text-align: center;
-            width: 90%;
-            max-width: 340px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 0 30px rgba(0, 242, 254, 0.2);
-        }
-        .login-box h3 {
-            color: #00f2fe;
-            margin-bottom: 10px;
-            font-size: 22px;
-        }
-        .login-box p {
-            color: #8b949e;
-            font-size: 13px;
-            margin-bottom: 25px;
-        }
-        .google-btn {
-            background: #ffffff;
-            color: #333333;
-            border: none;
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 10px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-        .google-btn img {
-            width: 20px;
-            height: 20px;
-        }
-        .close-login {
-            margin-top: 15px;
-            background: transparent;
-            border: none;
-            color: #8b949e;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        #login-status {
-            margin-top: 15px;
-            font-size: 13px;
-            color: #ff3366;
-            min-height: 20px;
-        }
-
+        /* Top HUD Header */
         .hud {
             position: absolute;
             top: 10px;
@@ -219,12 +140,14 @@
             cursor: pointer;
         }
 
+        /* Fullscreen Canvas */
         canvas {
             display: block;
             width: 100vw;
             height: 100vh;
         }
 
+        /* Exit Modal Popup */
         .modal {
             display: none;
             position: fixed;
@@ -268,31 +191,17 @@
 </head>
 <body>
 
+    <!-- HOME PAGE -->
     <div id="home-screen">
         <h1>NEON SOCCER PONG</h1>
         <p>2 Player Face-to-Face Mode</p>
-        <button class="btn" onclick="document.getElementById('login-modal').style.display='flex'">
-            🌐 LOGIN WITH GOOGLE
+        <button class="btn" onclick="handleGoogleLogin()">
+            <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#ffffff" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#ffffff" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#ffffff" d="M5.3 14.7c-.2-.8-.4-1.7-.4-2.7s.2-1.9.4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#ffffff" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 15C3.5 18.8 7.4 23 12 23z"/></svg>
+            GOOGLE SIGN IN & PLAY
         </button>
     </div>
 
-    <!-- GOOGLE LOGIN MODAL -->
-    <div id="login-modal">
-        <div class="login-box">
-            <h3>Google Login</h3>
-            <p>Sign in quickly with your Google account to play.</p>
-            
-            <button class="google-btn" onclick="loginWithGoogle()">
-                <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
-                Sign in with Google
-            </button>
-
-            <div id="login-status"></div>
-
-            <button class="close-login" onclick="document.getElementById('login-modal').style.display='none'">Cancel</button>
-        </div>
-    </div>
-
+    <!-- HUD OVERLAY -->
     <div class="hud">
         <div class="score-box">
             <span style="color: #ff007f;">P2: <span id="p2-score">0</span></span>
@@ -302,8 +211,10 @@
         <button class="exit-btn" onclick="showExitModal()">EXIT</button>
     </div>
 
+    <!-- CANVAS -->
     <canvas id="gameCanvas"></canvas>
 
+    <!-- EXIT CONFIRMATION MODAL -->
     <div id="exit-modal" class="modal">
         <div class="modal-content">
             <p>Are you sure you want to exit?</p>
@@ -321,7 +232,6 @@
         const p1ScoreElem = document.getElementById("p1-score");
         const p2ScoreElem = document.getElementById("p2-score");
         const homeScreen = document.getElementById("home-screen");
-        const loginModal = document.getElementById("login-modal");
         const exitModal = document.getElementById("exit-modal");
 
         let p1Score = 0;
@@ -345,8 +255,7 @@
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
-        window.startGameAfterLogin = function() {
-            loginModal.style.display = "none";
+        function startGameAfterLogin() {
             homeScreen.style.display = "none";
             p1Score = 0;
             p2Score = 0;
