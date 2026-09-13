@@ -8,7 +8,7 @@
     <!-- Firebase SDKs via CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         // यहाँ अपनी असली Firebase प्रोजेक्ट की डिटेल्स डालें
         const firebaseConfig = {
@@ -24,29 +24,27 @@
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // गूगल लॉगिन बटन क्लिक होने पर रीडायरेक्ट करेगा
+        // बटन क्लिक पर चलने वाला फंक्शन
         window.handleGoogleLogin = function() {
-            signInWithRedirect(auth, provider);
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    console.log("Login Success:", result.user.email);
+                    if (typeof window.startGameAfterLogin === "function") {
+                        window.startGameAfterLogin();
+                    }
+                })
+                .catch((error) => {
+                    console.error("Login Error:", error.message);
+                    alert("लॉगिन विफल रहा: " + error.message);
+                });
         };
 
-        // पेज लोड होने पर चेक करेगा कि लॉगिन पूरा हुआ या नहीं
-        getRedirectResult(auth)
-            .then((result) => {
-                if (result) {
-                    console.log("Login Success:", result.user.email);
-                    startGameAfterLogin();
-                }
-            }).catch((error) => {
-                console.error("Login Error:", error.message);
-                alert("लॉगिन विफल रहा: " + error.message);
-            });
-
-            // अगर यूजर पहले से लॉग-इन है तो ऑटोमैटिक गेम शुरू करने के लिए
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    console.log("User already logged in:", user.email);
-                }
-            });
+        // चेक करें कि यूजर पहले से लॉग-इन है या नहीं
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("User already logged in:", user.email);
+            }
+        });
     </script>
 
     <style>
@@ -255,7 +253,7 @@
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
-        function startGameAfterLogin() {
+        window.startGameAfterLogin = function() {
             homeScreen.style.display = "none";
             p1Score = 0;
             p2Score = 0;
@@ -419,4 +417,5 @@
         loop();
     </script>
 </body>
-</html>
+        </html>
+        
