@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Neon Soccer Pong - In-App Login</title>
+    <title>Neon Soccer Pong - Phone Login</title>
     
     <!-- Firebase SDKs via CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         const firebaseConfig = {
           apiKey: "AIzaSyDrsMo4f15JZxUk8LkNYqlYqfzEHOQ8Q4w",
@@ -23,31 +23,86 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const provider = new GoogleAuthProvider();
 
-        // इन-ऐप पॉप-अप लॉगिन फंक्शन
-        window.executeGoogleLogin = function() {
-            // लोडिंग दिखाएं
-            document.getElementById("login-status").innerText = "logging in with Google...";
-            
-            signInWithPopup(auth, provider)
-                .then((result) => {
-                    console.log("Login Success:", result.user.email);
-                    hideLoginModal();
-                    if (typeof window.startGameAfterLogin === "function") {
-                        window.startGameAfterLogin();
+        let confirmationResultObj = null;
+
+        // रीकैप्चा सेटअप (यह बैकग्राउंड में काम करता है)
+        window.setupRecaptcha = function() {
+            if (!window.recaptchaVerifier) {
+                window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    'size': 'invisible', // इसे इनविजिबल रखा है ताकि यूजर को परेशान न होना पड़े
+                    'callback': (response) => {
+                        // रीकैप्चा पास होने पर
                     }
-                })
-                .catch((error) => {
-                    console.error("Login Error:", error.message);
-                    document.getElementById("login-status").innerText = "Failed: " + error.message;
                 });
+            }
+        };
+
+        // 1. ओटीपी भेजने का फंक्शन
+        window.sendOTP = function() {
+            const phoneNumberInput = document.getElementById("phone-input").value.trim();
+            const statusElem = document.getElementById("login-status");
+            
+            if (phoneNumberInput.length < 10) {
+                statusElem.innerText = "कृपया सही फोन नंबर दर्ज करें (जैसे: +91XXXXXXXXXX)";
+                return;
+            }
+
+            // अगर देश का कोड नहीं लगाया है, तो +91 अपने Jod दें
+            let formattedPhone = phoneNumberInput;
+            if (!formattedPhone.startsWith("+")) {
+                formattedPhone = "+91" + formattedPhone;
+            }
+
+            statusElem.innerText = "OTP भेजा जा रहा है...";
+            window.setupRecaptcha();
+            const appVerifier = window.recaptchaVerifier;
+
+            signInWithPhoneNumber(auth, formattedPhone, appVerifier)
+                .then((confirmationResult) => {
+                    confirmationResultObj = confirmationResult;
+                    statusElem.innerText = "OTP भेज दिया गया है! कृपया नीचे दर्ज करें।";
+                    document.getElementById("phone-step").style.display = "none";
+                    document.getElementById("otp-step").style.display = "block";
+                }).catch((error) => {
+                    console.error("SMS not sent", error);
+                    statusElem.innerText = "एरर: " + error.message;
+                    // रीकैप्चा रीसेट करें
+                    if (window.recaptchaVerifier) {
+                        window.recaptchaVerifier.render().then(widgetId => grecaptcha.reset(widgetId));
+                    }
+                });
+        };
+
+        // 2. ओटीपी वेरिफाई करके लॉगिन करने का फंक्शन
+        window.verifyOTP = function() {
+            const otpInput = document.getElementById("otp-input").value.trim();
+            const statusElem = document.getElementById("login-status");
+
+            if (otpInput.length < 6) {
+                statusElem.innerText = "कृपया 6 अंकों का सही OTP दर्ज करें।";
+                return;
+            }
+
+            statusElem.innerText = "वेरिफ़ाई हो रहा है...";
+
+            confirmationResultObj.confirm(otpInput).then((result) => {
+                const user = result.user;
+                console.log("Phone Login Success:", user.phoneNumber);
+                hideLoginModal();
+                if (typeof window.startGameAfterLogin === "function") {
+                    window.startGameAfterLogin();
+                }
+            }).catch((error) => {
+                console.error("Invalid OTP", error);
+                statusElem.innerText = "गलत OTP! कृपया फिर से प्रयास करें।";
+            });
         };
 
         // चेक करें कि यूजर पहले से लॉग-इन है या नहीं
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log("User already logged in:", user.email);
+                console.log("User already logged in:", user.phoneNumber || user.email);
                 hideLoginModal();
                 if (typeof window.startGameAfterLogin === "function") {
                     window.startGameAfterLogin();
@@ -115,7 +170,7 @@
             gap: 10px;
         }
 
-        /* In-App Login Modal Popup */
+        /* In-App Phone Login Modal */
         #login-modal {
             display: none;
             position: fixed;
@@ -123,14 +178,14 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             z-index: 30;
             justify-content: center;
             align-items: center;
         }
         .login-box {
             background: #161b22;
-            padding: 30px 20px;
+            padding: 25px 20px;
             border-radius: 20px;
             text-align: center;
             width: 90%;
@@ -140,17 +195,29 @@
         }
         .login-box h3 {
             color: #00f2fe;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             font-size: 22px;
         }
         .login-box p {
             color: #8b949e;
-            font-size: 14px;
-            margin-bottom: 25px;
+            font-size: 13px;
+            margin-bottom: 20px;
         }
-        .google-btn {
-            background: #ffffff;
-            color: #24292e;
+        .input-box {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background: #0a0d14;
+            border: 1px solid #30363d;
+            color: #fff;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            outline: none;
+        }
+        .action-btn {
+            background: linear-gradient(45deg, #00f2fe, #4facfe);
+            color: #0a0d14;
             border: none;
             width: 100%;
             padding: 12px;
@@ -158,11 +225,6 @@
             font-weight: bold;
             border-radius: 10px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
         .close-login {
             margin-top: 15px;
@@ -176,6 +238,7 @@
             margin-top: 12px;
             font-size: 13px;
             color: #ff3366;
+            min-height: 20px;
         }
 
         /* Top HUD Header */
@@ -266,21 +329,33 @@
         <h1>NEON SOCCER PONG</h1>
         <p>2 Player Face-to-Face Mode</p>
         <button class="btn" onclick="showLoginModal()">
-            <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#ffffff" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#ffffff" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#ffffff" d="M5.3 14.7c-.2-.8-.4-1.7-.4-2.7s.2-1.9.4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#ffffff" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 15C3.5 18.8 7.4 23 12 23z"/></svg>
-            GOOGLE SIGN IN & PLAY
+            📱 PHONE SIGN IN & PLAY
         </button>
     </div>
 
-    <!-- IN-APP LOGIN MODAL -->
+    <!-- IN-APP PHONE LOGIN MODAL -->
     <div id="login-modal">
         <div class="login-box">
-            <h3>Sign In Required</h3>
-            <p>Play the game by connecting with your Google account inside the app.</p>
-            <button class="google-btn" onclick="executeGoogleLogin()">
-                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.3 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.3 14.7c-.2-.8-.4-1.7-.4-2.7s.2-1.9.4-2.7L1.6 6.4C.6 8.4 0 10.6 0 13s.6 4.6 1.6 6.6l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.3-6.7-5.3L1.6 15C3.5 18.8 7.4 23 12 23z"/></svg>
-                Continue with Google
-            </button>
+            <h3>Phone Login</h3>
+            <p>Enter your mobile number to receive an OTP inside this app.</p>
+            
+            <!-- Step 1: Phone Number Input -->
+            <div id="phone-step">
+                <input type="tel" id="phone-input" class="input-box" placeholder="Mobile Number (e.g. 9876543210)" />
+                <button class="action-btn" onclick="sendOTP()">Send OTP</button>
+            </div>
+
+            <!-- Step 2: OTP Verification (Initially Hidden) -->
+            <div id="otp-step" style="display: none;">
+                <input type="text" id="otp-input" class="input-box" placeholder="Enter 6-digit OTP" maxlength="6" />
+                <button class="action-btn" onclick="verifyOTP()">Verify & Play</button>
+            </div>
+
             <div id="login-status"></div>
+            
+            <!-- Hidden container for reCAPTCHA -->
+            <div id="recaptcha-container"></div>
+
             <button class="close-login" onclick="hideLoginModal()">Cancel</button>
         </div>
     </div>
@@ -347,6 +422,8 @@
         function hideLoginModal() {
             loginModal.style.display = "none";
             document.getElementById("login-status").innerText = "";
+            document.getElementById("phone-step").style.display = "block";
+            document.getElementById("otp-step").style.display = "none";
         }
 
         window.startGameAfterLogin = function() {
