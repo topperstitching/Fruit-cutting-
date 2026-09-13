@@ -8,45 +8,45 @@
     <!-- Firebase SDKs via CDN -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // यहाँ अपनी असली Firebase प्रोजेक्ट की डिटेल्स डालें
+        // आपकी असली Firebase प्रोजेक्ट की डिटेल्स
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
+          apiKey: "AIzaSyDrsMo4f15JZxUk8LkNYqlYqfzEHOQ8Q4w",
+          authDomain: "toppersewingmachine.firebaseapp.com",
+          databaseURL: "https://toppersewingmachine-default-rtdb.firebaseio.com",
+          projectId: "toppersewingmachine",
+          storageBucket: "toppersewingmachine.firebasestorage.app",
+          messagingSenderId: "281176461879",
+          appId: "1:281176461879:web:97648170de01d8c975e5b2",
+          measurementId: "G-GRP6EXGE3L"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // गूगल लॉगिन बटन क्लिक होने पर रीडायरेक्ट करेगा
+        // बटन क्लिक पर चलने वाला फंक्शन
         window.handleGoogleLogin = function() {
-            signInWithRedirect(auth, provider);
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    console.log("Login Success:", result.user.email);
+                    if (typeof window.startGameAfterLogin === "function") {
+                        window.startGameAfterLogin();
+                    }
+                })
+                .catch((error) => {
+                    console.error("Login Error:", error.message);
+                    alert("लॉगिन विफल रहा: " + error.message);
+                });
         };
 
-        // पेज लोड होने पर चेक करेगा कि लॉगिन पूरा हुआ या नहीं
-        getRedirectResult(auth)
-            .then((result) => {
-                if (result) {
-                    console.log("Login Success:", result.user.email);
-                    startGameAfterLogin();
-                }
-            }).catch((error) => {
-                console.error("Login Error:", error.message);
-                alert("लॉगिन विफल रहा: " + error.message);
-            });
-
-            // अगर यूजर पहले से लॉग-इन है तो ऑटोमैटिक गेम शुरू करने के लिए
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    console.log("User already logged in:", user.email);
-                }
-            });
+        // चेक करें कि यूजर पहले से लॉग-इन है या नहीं
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("User already logged in:", user.email);
+            }
+        });
     </script>
 
     <style>
@@ -255,7 +255,7 @@
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
-        function startGameAfterLogin() {
+        window.startGameAfterLogin = function() {
             homeScreen.style.display = "none";
             p1Score = 0;
             p2Score = 0;
